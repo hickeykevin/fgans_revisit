@@ -1,5 +1,4 @@
 data/
 env_fgans/
 logs/
-fid_stats/
 __pycache__
