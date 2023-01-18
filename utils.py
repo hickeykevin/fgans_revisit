@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.utils.data import TensorDataset, DataLoader
 
 import numpy as np
 import scipy.stats
@@ -25,13 +26,14 @@ def prepare_for_torchmetric_FID(imgs: torch.Tensor, make_between_01: bool = True
     '''
     if make_between_01:
         imgs = (imgs + 1) / 2
-    print("INFO: Preparing imgs to be used in torchmetrics FID evaluation")
-    for idx, img in enumerate(tqdm(imgs)):
-        img = to_pil_image(img).resize((299, 299))
-        img = convert_image_dtype(pil_to_tensor(img), dtype=torch.uint8)
-        imgs[idx] = img
 
-    return imgs
+    tmp = []
+    for img in imgs:
+            img = to_pil_image(img).resize((299, 299))
+            img = convert_image_dtype(pil_to_tensor(img), dtype=torch.uint8)
+            tmp.append(img)
+
+    return torch.stack(tmp, dim=0)
 
     
 
@@ -51,38 +53,44 @@ def unpack_cifar10_tar_file(data_folder_path="./data/cifar10"):
 
     print(f"[INFO] Saving all images in {dataset_name} to disc")
     save_path = data_folder_path / "raw"
-    save_path.mkdir(parents=True, exist_ok=True)
-    
-    num = 0
-    for batch in [f"data_batch_{x}" for x in range(1, 6)]:
-        items = unpickle(str(data_folder_path / "tmp" /f"{extension}batches-py/{batch}"))
-        imgs = items[b'data']
-        for img in tqdm(imgs):
-            pxls_R = img[0:1024].reshape((32, 32))
-            pxls_G = img[1024:2048].reshape((32, 32))
-            pxls_B = img[2048:3072].reshape((32, 32))
-            img = np.dstack((pxls_R, pxls_G, pxls_B))
-            pil_img = Image.fromarray(img.astype('uint8'), mode="RGB")
-            pil_img.save(save_path / f"{num}.png")
-            num += 1
+    try:
+        save_path.mkdir(parents=True, exist_ok=False)
+    except FileExistsError:
+        print("[INFO] Raw images already saved; moving to next step")
+        pass
+    else:
+        num = 0
+        for batch in [f"data_batch_{x}" for x in range(1, 6)]:
+            items = unpickle(str(data_folder_path / "tmp" /f"{extension}batches-py/{batch}"))
+            imgs = items[b'data']
+            for img in tqdm(imgs):
+                pxls_R = img[0:1024].reshape((32, 32))
+                pxls_G = img[1024:2048].reshape((32, 32))
+                pxls_B = img[2048:3072].reshape((32, 32))
+                img = np.dstack((pxls_R, pxls_G, pxls_B))
+                pil_img = Image.fromarray(img.astype('uint8'), mode="RGB")
+                pil_img.save(save_path / f"{num}.png")
+                num += 1
 
 
 def resize_raw_images(data_folder_path: Path, resized_img_size: int):
     raw_data_path = data_folder_path / "raw"
     resized_data_folder_path = data_folder_path / f"resized_{resized_img_size}"
-    resized_data_folder_path.mkdir(exists_ok=True, parents=True)
-    
-    all_original_imgs = raw_data_path.glob("*.png")
-    for i, img in enumerate(tqdm(all_original_imgs)):
-        pil_img = Image.open(str(img)).resize((resized_img_size, resized_img_size))
-        pil_img.save(resized_data_folder_path / f"{i}.png")
+    try:
+        resized_data_folder_path.mkdir(exist_ok=False, parents=True)
+    except FileExistsError:
+        print(f"Imgs of size {resized_data_folder_path} already exist; moving to next step")
+    else:
+        all_original_imgs = raw_data_path.glob("*.png")
+        for i, img in enumerate(tqdm(all_original_imgs)):
+            pil_img = Image.open(str(img)).resize((resized_img_size, resized_img_size))
+            pil_img.save(resized_data_folder_path / f"{i}.png")
 
-    assert len(all_original_imgs) == len(resized_data_folder_path.glob("*.png"))
-    return resized_data_folder_path
+        return resized_data_folder_path
 
 
 def prepare_cleanfid_fake_directory(params: Dict):
-    fake_folder_location = Path.cwd() / "data" / f"{params['dataset']}" / "fake_imgs"
+    fake_folder_location = Path.cwd() / "data" / params['dataset'] / "fake_imgs"
     if not fake_folder_location.exists():
         fake_folder_location.mkdir(exist_ok=True, parents=True)
     return fake_folder_location
@@ -91,7 +99,6 @@ def prepare_cleanfid_fake_directory(params: Dict):
 def save_generated_img_to_folder(img: torch.Tensor, idx: int, img_size: int, save_path):
     '''
     function to save generated images to disc; used for cleanfid calulation
-
     args:
         img: single generated img as torch tensor
         idx: the i'th image in the dataset; used for naming 
@@ -124,17 +131,14 @@ def generate_imgs(net_G, device, params: Dict, size=50000, batch_size=128):
         for start in trange(0, size, batch_size,
                             desc='Evaluating', ncols=0, leave=False):
             end = min(start + batch_size, size)
-            z = torch.randn((end - start, params['z_dim'])).to(device) 
+            z = torch.randn((end - start, *params['nz'])).to(device) 
             imgs = net_G(z).cpu()
 
-            if params['fid_method'] == "cleanfid":
-                for idx, img in enumerate(imgs):
-                    idx = start + idx
-                    save_generated_img_to_folder(img, idx=idx, params=params)
-            else:
-                imgs_list.append(imgs)
-                result = torch.stack(imgs, dim=0)
-                return result
+            
+            imgs_list.append(imgs)
+        result = torch.cat(imgs_list, dim=0)
+        result = DataLoader(TensorDataset(result), batch_size=params['bsize'], num_workers=4)
+        return result
 
 
     #imgs = (imgs + 1) / 2  # is this needed for Jan_JSD_DCGAN_FID experiment? 

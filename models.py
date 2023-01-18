@@ -9,7 +9,7 @@ class Q_DCGAN(nn.Module):
         super().__init__()
 
         # Input is the latent vector Z.
-        self.tconv1 = nn.ConvTranspose2d(params['nz'], params['ngf']*8,
+        self.tconv1 = nn.ConvTranspose2d(params['nz'][0], params['ngf']*8,
             kernel_size=4, stride=1, padding=0, bias=False)
         self.bn1 = nn.BatchNorm2d(params['ngf']*8)
 
@@ -49,7 +49,7 @@ class Q_DCGAN_128(nn.Module):
         super().__init__()
 
         # Input is the latent vector Z.
-        self.tconv0 = nn.ConvTranspose2d(params['nz'], params['ngf']*16,
+        self.tconv0 = nn.ConvTranspose2d(params['nz'][0], params['ngf']*16,
             kernel_size=4, stride=1, padding=0, bias=False)
         self.bn0 = nn.BatchNorm2d(params['ngf']*16)
         

@@ -10,7 +10,7 @@ from models import Q_DCGAN, V_DCGAN, Q_DCGAN_128, V_DCGAN_128
 from utils import weights_init
 from losses import QLOSS, VLOSS
 from dataloaders import CIFAR10DataModule
-from train_vanilla import train_vanilla, train_vanilla_with_torchmetrics
+from train_vanilla import train_vanilla
 from config import Config
 from dataclasses import asdict
 torch.autograd.set_detect_anomaly(True)
@@ -78,12 +78,9 @@ print(V_net.apply(weights_init))
 if __name__ == "__main__":
     print('Vanilla training')
     print('Starting Training...')
-    if params['fid_method'] == "torchmetrics":
-        Q_net, V_net, V_losses, Q_losses = train_vanilla_with_torchmetrics(params, train_loader, V_net, Q_net, 
-                                                    V_optimizer, Q_optimizer, device, log_PATH)
-    else:
-        Q_net, V_net, V_losses, Q_losses = train_vanilla(params, train_loader, V_net, Q_net, 
-                                                    V_optimizer, Q_optimizer, device, log_PATH)
+    
+    train_vanilla(params, train_loader, V_net, Q_net, 
+                    V_optimizer, Q_optimizer, device, log_PATH)
     
 
 
