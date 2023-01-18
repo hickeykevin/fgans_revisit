@@ -1,13 +1,18 @@
 import torchvision
 from torchvision import transforms
 from torch.utils.data import DataLoader
+from PIL import Image
+from torchvision.transforms.functional import to_pil_image, pil_to_tensor
 
 def CIFAR10DataModule(params, PATH):
+
     transform = transforms.Compose([
-        transforms.Resize(params['imsize']),
+        transforms.Lambda(
+            lambda img: img.resize((params['imsize'], params['imsize']), Image.BICUBIC) 
+            ),
         transforms.CenterCrop(params['imsize']),
         transforms.ToTensor(),
-         transforms.Normalize((0.5, 0.5, 0.5),
+        transforms.Normalize((0.5, 0.5, 0.5),
              (0.5, 0.5, 0.5))
         ])
 
