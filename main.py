@@ -72,8 +72,8 @@ else:
 Q_optimizer = optim.Adam(Q_net.parameters(),lr=config.lr, betas=(config.beta1, config.beta2))
 V_optimizer = optim.Adam(V_net.parameters(),lr=config.lr, betas=(config.beta1, config.beta2))
 
-print(Q_net.apply(weights_init))
-print(V_net.apply(weights_init))
+Q_net.apply(weights_init)
+V_net.apply(weights_init)
 
 if __name__ == "__main__":
     print('Vanilla training')

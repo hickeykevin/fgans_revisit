@@ -1,6 +1,5 @@
 
 import torch
-from torch.nn import DataParallel
 from models import  Q_DCGAN
 from pathlib import Path
 from models import Q_DCGAN

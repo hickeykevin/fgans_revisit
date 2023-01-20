@@ -7,6 +7,14 @@ import torch.nn.functional as F
 class Q_DCGAN(nn.Module):  
     def __init__(self, params):
         super().__init__()
+        if params['imsize'] == 32:
+            final_layer_kernel_size = 1
+            final_layer_stride_size = 1
+            final_layer_padding_size = 0
+        elif params['imsize'] == 64:
+            final_layer_kernel_size = 4
+            final_layer_stride_size = 2
+            final_layer_padding_size = 1
 
         # Input is the latent vector Z.
         self.tconv1 = nn.ConvTranspose2d(params['nz'][0], params['ngf']*8,
@@ -30,7 +38,11 @@ class Q_DCGAN(nn.Module):
 
         # Input Dimension: (ngf) * 32 * 32
         self.tconv5 = nn.ConvTranspose2d(params['ngf'], params['nc'],
-            4, 2, 1, bias=False)
+            final_layer_kernel_size, 
+            final_layer_stride_size, 
+            final_layer_padding_size, 
+            bias=False
+            )
         #Output Dimension: (nc) x 64 x 64
 
     def forward(self, x):
@@ -47,6 +59,10 @@ class Q_DCGAN(nn.Module):
 class Q_DCGAN_128(nn.Module):  
     def __init__(self, params):
         super().__init__()
+        if params["imsize"]==64:
+            final_layer_kernel_size = 4
+            final_layer_stride_size = 2
+            final_layer_padding_size =1 
 
         # Input is the latent vector Z.
         self.tconv0 = nn.ConvTranspose2d(params['nz'][0], params['ngf']*16,
@@ -74,9 +90,14 @@ class Q_DCGAN_128(nn.Module):
         self.bn4 = nn.BatchNorm2d(params['ngf'])
 
         # Input Dimension: (ngf) * 32 * 32
-        self.tconv5 = nn.ConvTranspose2d(params['ngf'], params['nc'],
-            4, 2, 1, bias=False)
-        #Output Dimension: (nc) x 64 x 64
+        self.tconv5 = nn.ConvTranspose2d(
+            params['ngf'], params['nc'],
+            final_layer_kernel_size, 
+            final_layer_stride_size, 
+            final_layer_padding_size, 
+            bias=False
+            )
+        #Output Dimension: (nc) x imsize x imsize
 
     def forward(self, x):
         x = F.relu(self.bn0(self.tconv0(x)))
@@ -94,7 +115,15 @@ class V_DCGAN(nn.Module):
     def __init__(self, params):
         super().__init__()
         self.params = params
-
+        if params['imsize'] == 32:
+            final_layer_kernel_size = 2
+            final_layer_stride_size = 1
+            final_layer_padding_size = 0
+        elif params['imsize'] == 64:
+            final_layer_kernel_size = 4
+            final_layer_stride_size = 2
+            final_layer_padding_size = 1
+        
         # Input Dimension: (nc) x 64 x 64
         self.conv1 = nn.Conv2d(params['nc'], params['ndf'],
             4, 2, 1, bias=False)
@@ -115,7 +144,13 @@ class V_DCGAN(nn.Module):
         self.bn4 = nn.BatchNorm2d(params['ndf']*8)
 
         # Input Dimension: (ndf*8) x 4 x 4
-        self.conv5 = nn.Conv2d(params['ndf']*8, 1, 4, 1, 0, bias=False)
+        self.conv5 = nn.Conv2d(
+            params['ndf']*8, 1, 
+            final_layer_kernel_size, 
+            final_layer_stride_size, 
+            final_layer_padding_size, 
+            bias=False
+            )
 
     def forward(self, x):
         x = F.leaky_relu(self.conv1(x), 0.2, True)
