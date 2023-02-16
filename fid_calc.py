@@ -9,9 +9,12 @@ from tqdm import tqdm
 from pathlib import Path
 from utils import prepare_for_torchmetric_FID, generate_imgs
 import re
+import csv
 
 def main(experiment):
     params = asdict(Config())
+    # specify the directory in which the generator weights are stored
+    # Ex. logs/cifar10/{exp_name}
     weights_path = Path(experiment)
     generator_weights = [str(x) for x in weights_path.iterdir() if x.name.startswith("Q_")]
 
@@ -27,8 +30,11 @@ def main(experiment):
     stats_file = Path.cwd() / "fid_stats" / params['eval_stats_name']
     FID = torch.load(stats_file)
     FID.to(device=device_0)
+
+    # instantiate our generator without weights; 
     Q_net = Q_DCGAN(params).to(device=device_0)
 
+    results = []
     print("[INFO] Calculating FID on saved model weights")
     for idx, weight in enumerate(generator_weights[::params['fid_eval_n_epochs']]):
         idx = idx*params['fid_eval_n_epochs']
@@ -41,6 +47,19 @@ def main(experiment):
         torchmetrics_fid_score = FID.compute()
         print(f"Epoch={idx} FID Score: {torchmetrics_fid_score.item()}")
         FID.reset()
+        row = [idx, torchmetrics_fid_score.item()]
+        results.append(row)
+
+    print("[INFO]: Saving results to corresponding experiment folder")
+    header = ["epoch", "fid_score"]
+    filename = "fid_results.csv"
+
+    with open(Path(experiment) / filename, 'w') as csvfile:
+        csvwriter = csv.writer(csvfile)
+        csvwriter.writerow(header)
+        csvwriter.writerows(results)
+
+        
         
 
 if __name__ == "__main__":
